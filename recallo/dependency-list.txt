@@ -1,0 +1,4 @@
+The following files have been resolved:
+   org.springframework.boot:spring-boot-starter-webmvc:jar:4.0.5:compile[36m -- module spring.boot.starter.webmvc[0;1m [auto][m
+   org.springframework.boot:spring-boot-starter-webmvc-test:jar:4.0.5:test[36m -- module spring.boot.starter.webmvc.test[0;1m [auto][m
+
