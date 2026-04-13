@@ -1,5 +1,8 @@
 package com.recallo.recallo;
+
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "web_memories")
@@ -14,20 +17,25 @@ public class WebMemory {
     @Column(columnDefinition = "TEXT")
     private String url;
 
-    // Empty constructor needed by Spring Boot
+    // NEW: Tell Hibernate EXACTLY how to handle the vector math
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Column(columnDefinition = "vector(384)")
+    private float[] embedding;
+
     public WebMemory() {}
 
-    public WebMemory(String title, String url) {
+    public WebMemory(String title, String url, float[] embedding) {
         this.title = title;
         this.url = url;
+        this.embedding = embedding;
     }
 
-    // Getters
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getUrl() { return url; }
+    public float[] getEmbedding() { return embedding; }
 
-    // Setters
     public void setTitle(String title) { this.title = title; }
     public void setUrl(String url) { this.url = url; }
+    public void setEmbedding(float[] embedding) { this.embedding = embedding; }
 }
