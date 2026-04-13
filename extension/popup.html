@@ -1,10 +1,160 @@
 <!DOCTYPE html>
 <html>
-  <body style="width: 250px; padding: 10px; font-family: sans-serif;">
-    <h3>Recallo</h3>
-    <p id="status">Ready to save this page!</p>
-    <button id="saveBtn">Save to Memory</button>
+<head>
+    <title>Recallo</title>
+    <style>
+        /* Premium Color & UI Variables */
+        :root {
+            --surface: rgba(20, 20, 22, 0.65);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #ededed;
+            --text-muted: #a1a1aa;
+            --violet: #8b5cf6;
+            --cyan: #06b6d4;
+        }
+
+        /* Lock both HTML and Body so Chrome cannot stretch the window */
+        html, body {
+            margin: 0; padding: 0; 
+            width: 340px; height: 460px;
+            overflow: hidden !important; 
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #050505; /* Deep Obsidian */
+            color: var(--text);
+            position: relative;
+        }
+
+        /* The Interactive Background Orb */
+        #glow {
+            position: absolute;
+            width: 250px; height: 250px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(6, 182, 212, 0.15) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none; /* Let clicks pass through to buttons */
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s;
+            z-index: 0;
+        }
+
+        /* Frosted Glass Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            padding: 24px;
+            height: 100%;
+            box-sizing: border-box;
+            background: var(--surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+
+        h3 {
+            margin: 0 0 20px 0; font-size: 1.5rem; font-weight: 700;
+            background: linear-gradient(to right, #a78bfa, #22d3ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+
+        /* Floating UI Cards */
+        .card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            transition: border-color 0.3s;
+        }
+        
+        .card:hover { border-color: rgba(255,255,255,0.15); }
+
+        /* Liquid Gradient Buttons */
+        button {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(6, 182, 212, 0.8));
+            color: white; 
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; font-weight: 600; font-size: 14px;
+            cursor: pointer; position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+            border: 1px solid rgba(255,255,255,0.4);
+            filter: brightness(1.1);
+        }
+
+        button:active { transform: translateY(1px); }
+
+        /* Sleek Input Fields */
+        input {
+            width: 100%; box-sizing: border-box; padding: 12px;
+            margin-bottom: 12px; border-radius: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border);
+            color: var(--text); font-size: 14px; outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        /* Animated Result Links */
+        .result-item {
+            margin-top: 12px; padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px; border-left: 3px solid var(--violet);
+            transition: all 0.2s ease; cursor: pointer;
+        }
+
+        .result-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(6px); /* Smooth slide effect */
+            border-left-color: var(--cyan);
+        }
+
+        .result-item a { 
+            text-decoration: none; color: #e4e4e7; font-size: 13px; 
+            display: block; line-height: 1.5; font-weight: 500;
+        }
+
+        #status, i, p { color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 10px; font-weight: 500;}
+        
+        /* Custom Scrollbar for results */
+        #results { max-height: 140px; overflow-y: auto; margin-top: 10px; padding-right: 4px; }
+        #results::-webkit-scrollbar { width: 4px; }
+        #results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="glow"></div>
+    
+    <div class="container">
+        <h3>Recallo AI</h3>
+        
+        <div class="card">
+            <button id="saveBtn">Save to AI Vault</button>
+            <p id="status"></p>
+        </div>
+
+        <div class="card" style="margin-bottom: 0;">
+            <input type="text" id="searchInput" placeholder="Ask your memory...">
+            <button id="searchBtn" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.8), rgba(139, 92, 246, 0.8));">Recall</button>
+            <div id="results"></div>
+        </div>
+    </div>
 
     <script src="popup.js"></script>
-  </body>
+</body>
 </html>
