@@ -17,25 +17,32 @@ public class WebMemory {
     @Column(columnDefinition = "TEXT")
     private String url;
 
-    // NEW: Tell Hibernate EXACTLY how to handle the vector math
+    // NEW: A massive text column to hold the scraped website content!
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
     @JdbcTypeCode(SqlTypes.VECTOR)
     @Column(columnDefinition = "vector(384)")
     private float[] embedding;
 
     public WebMemory() {}
 
-    public WebMemory(String title, String url, float[] embedding) {
+    // UPDATED: Added content to the constructor
+    public WebMemory(String title, String url, String content, float[] embedding) {
         this.title = title;
         this.url = url;
+        this.content = content;
         this.embedding = embedding;
     }
 
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getUrl() { return url; }
+    public String getContent() { return content; }
     public float[] getEmbedding() { return embedding; }
 
     public void setTitle(String title) { this.title = title; }
     public void setUrl(String url) { this.url = url; }
+    public void setContent(String content) { this.content = content; }
     public void setEmbedding(float[] embedding) { this.embedding = embedding; }
 }
