@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# --- Custom Recallo Secrets & Build Files ---
+src/main/resources/application.properties
+*.env
+node_modules/
+dist/

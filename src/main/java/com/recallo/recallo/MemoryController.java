@@ -109,4 +109,42 @@ public class MemoryController {
         webMemoryRepository.deleteById(id);
         return "Memory chunk deleted successfully!";
     }
+    // NEW: The Generative RAG Endpoint
+    @PostMapping("/ask")
+    public String askAiBrain(@RequestBody Map<String, String> payload) {
+        String userQuestion = payload.get("query");
+
+        System.out.println("--- NEW RAG QUESTION RECEIVED ---");
+        System.out.println("User asked: " + userQuestion);
+
+        // 1. Turn the question into math to find the right memories
+        float[] searchVector = aiService.generateMemoryVector(userQuestion);
+
+        // 2. Pull the top 3 most relevant chunks from the database
+        List<WebMemory> relevantChunks = webMemoryRepository.searchSimilarMemories(searchVector);
+
+        // 3. Build the Context (The "System Prompt")
+        // We stitch the database chunks together so Gemini can read them.
+        StringBuilder contextBuilder = new StringBuilder();
+        for (WebMemory chunk : relevantChunks) {
+            contextBuilder.append("Source: ").append(chunk.getTitle()).append("\n");
+            contextBuilder.append("Content: ").append(chunk.getContent()).append("\n\n");
+        }
+
+        // 4. Give Gemini strict instructions so it doesn't hallucinate
+        String finalPrompt = "You are 'Recallo', an AI second brain. Answer the user's question based strictly on the provided memories below. "
+                + "If the answer is not in the memories, say 'I don't have a memory of that.' Do not use outside knowledge.\n\n"
+                + "USER MEMORIES:\n" + contextBuilder.toString()
+                + "USER QUESTION: " + userQuestion;
+
+        System.out.println("Thinking and analyzing memories...");
+
+        // 5. Send it to Gemini and get the English response back!
+        String geminiResponse = aiService.askGemini(finalPrompt);
+
+        System.out.println("Response generated successfully!");
+        System.out.println("---------------------------------");
+
+        return geminiResponse;
+    }
 }
