@@ -1,76 +1,129 @@
-:root {
-  --bg: #050505;
-  --surface: #1e1e24;
-  --text: #ededed;
-  --accent: #8b5cf6;
-}
-
+/* Premium Dark Mode Reset */
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
-  padding: 40px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #09090b; /* Deep slate black */
+  color: #f4f4f5;
 }
 
 .vault-container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
+  padding: 40px 20px;
 }
 
-header {
-  text-align: center;
-  margin-bottom: 40px;
+/* Sleek Tab Navigation */
+.nav-tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #27272a;
+  padding-bottom: 15px;
 }
 
-h1 {
-  background: linear-gradient(to right, #a78bfa, #22d3ee);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-size: 3rem;
-  margin: 0;
+.tab-btn {
+  background: transparent;
+  color: #a1a1aa;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
+.tab-btn:hover {
+  color: #fff;
+  background: #27272a;
+}
+
+.tab-btn.active {
+  color: #fff;
+  background: #27272a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Glassy Input Area */
 .search-bar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 40px;
+  gap: 12px;
+  background: #18181b;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #27272a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-input {
-  flex: 1;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #333;
-  background: var(--surface);
-  color: white;
-  font-size: 1.1rem;
-}
-
-button {
-  padding: 15px 30px;
-  border-radius: 8px;
+.search-bar input {
+  flex-grow: 1;
+  background: transparent;
   border: none;
-  background: var(--accent);
   color: white;
-  font-weight: bold;
+  font-size: 1.05rem;
+  padding: 10px;
+  outline: none;
+}
+
+.search-bar select {
+  background: #27272a;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: 0.2s;
+  outline: none;
+  font-weight: 500;
 }
 
-button:hover {
-  background: #7c3aed;
+.search-bar button {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
+.search-bar button:hover {
+  opacity: 0.9;
+}
+
+.search-bar button:disabled {
+  background: #3f3f46;
+  cursor: not-allowed;
+}
+
+/* Beautiful Scrollbars for the Chat */
+.chat-window::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-window::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-window::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+/* Data Vault Grid */
 .memory-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
 }
 
 .memory-card {
-  background: var(--surface);
-  padding: 20px;
+  background: #18181b;
+  border: 1px solid #27272a;
   border-radius: 12px;
-  border: 1px solid #333;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.memory-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }

@@ -1,18 +1,17 @@
 package com.recallo.recallo;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.StreamingResponseHandler;
+import dev.langchain4j.model.output.Response;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -25,126 +24,156 @@ public class MemoryController {
     @Autowired
     private AiService aiService;
 
+    public static class ChatMessage {
+        private String role;
+        private String text;
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+        public String getText() { return text; }
+        public void setText(String text) { this.text = text; }
+    }
+
+    public static class AskRequest {
+        private String query;
+        private Integer days;
+        private List<ChatMessage> history;
+
+        public String getQuery() { return query; }
+        public void setQuery(String query) { this.query = query; }
+        public Integer getDays() { return days; }
+        public void setDays(Integer days) { this.days = days; }
+        public List<ChatMessage> getHistory() { return history; }
+        public void setHistory(List<ChatMessage> history) { this.history = history; }
+    }
+
     @PostMapping("/save")
     public String saveMemory(@RequestBody Map<String, String> payload) {
         String title = payload.get("title");
         String url = payload.get("url");
-        String fullContent = payload.get("content"); 
+        String fullContent = payload.get("content");
 
         if (fullContent == null || fullContent.isEmpty()) {
             fullContent = "No readable content found.";
         }
 
-        System.out.println("--- NEW SAVE INITIATED ---");
-        System.out.println("Scraped Content Length: " + fullContent.length() + " characters");
-
-        // 1. The Sliding Window Chunking Algorithm
-        int chunkSize = 1500; // Safe character limit for the AI model
-        int overlap = 300;    // Overlap to keep sentences flowing contextually
-        
+        int chunkSize = 1500;
+        int overlap = 300;
         List<WebMemory> chunksToSave = new ArrayList<>();
 
         for (int i = 0; i < fullContent.length(); i += (chunkSize - overlap)) {
-            // Determine where this chunk ends
             int end = Math.min(fullContent.length(), i + chunkSize);
             String chunkText = fullContent.substring(i, end);
-
-            // 2. Combine the title and this specific chunk
             String textForAi = "Website Title: " + title + "\nURL: " + url + "\nContent Chunk: " + chunkText;
-
-            // 3. Generate a math vector for JUST this chunk
             float[] aiBrainNumbers = aiService.generateMemoryVector(textForAi);
-
-            // 4. Create a database record for this chunk
             WebMemory memoryChunk = new WebMemory(title, url, chunkText, aiBrainNumbers);
             chunksToSave.add(memoryChunk);
-
-            // Stop the loop if we have reached the end of the text
-            if (end == fullContent.length()) {
-                break;
-            }
+            if (end == fullContent.length()) break;
         }
 
-        // 5. Batch save all chunks to the database at once!
         webMemoryRepository.saveAll(chunksToSave);
-
-        System.out.println("Successfully sliced and saved " + chunksToSave.size() + " chunks to the database!");
-        System.out.println("--------------------------");
-
         return "Memory and " + chunksToSave.size() + " AI Vectors permanently saved!";
     }
 
     @PostMapping("/search")
     public List<WebMemory> searchMemory(@RequestBody Map<String, String> payload) {
         String userQuestion = payload.get("query");
-
-        System.out.println("--- NEW SEARCH INITIATED ---");
-        System.out.println("User asked: " + userQuestion);
-
-        // 1. Convert the user's question into math
         float[] searchVector = aiService.generateMemoryVector(userQuestion);
-
-        // 2. Ask the database to find the 3 closest chunk matches
-        List<WebMemory> results = webMemoryRepository.searchSimilarMemories(searchVector);
-
-        System.out.println("Found " + results.size() + " matches!");
-        System.out.println("----------------------------");
-
-        // 3. Return the matching chunks back to the user
-        return results;
+        return webMemoryRepository.searchSimilarMemories(searchVector);
     }
 
     @GetMapping("/all")
     public List<WebMemory> getAllMemories() {
-        System.out.println("--- DASHBOARD REQUESTED ALL MEMORIES ---");
-        // webMemoryRepository.findAll() automatically writes the SQL to get everything
         return webMemoryRepository.findAll();
     }
 
-    // NEW: The Delete Endpoint
     @DeleteMapping("/delete/{id}")
     public String deleteMemory(@PathVariable Long id) {
-        System.out.println("--- DELETING MEMORY CHUNK ID: " + id + " ---");
-        // Spring Data JPA handles the SQL deletion automatically
         webMemoryRepository.deleteById(id);
         return "Memory chunk deleted successfully!";
     }
-    // NEW: The Generative RAG Endpoint
+
     @PostMapping("/ask")
-    public String askAiBrain(@RequestBody Map<String, String> payload) {
-        String userQuestion = payload.get("query");
+    public ResponseBodyEmitter askAiBrainStream(@RequestBody AskRequest request) {
+        String userQuestion = request.getQuery();
+        Integer daysLimit = request.getDays();
 
-        System.out.println("--- NEW RAG QUESTION RECEIVED ---");
-        System.out.println("User asked: " + userQuestion);
-
-        // 1. Turn the question into math to find the right memories
         float[] searchVector = aiService.generateMemoryVector(userQuestion);
 
-        // 2. Pull the top 3 most relevant chunks from the database
-        List<WebMemory> relevantChunks = webMemoryRepository.searchSimilarMemories(searchVector);
-
-        // 3. Build the Context (The "System Prompt")
-        // We stitch the database chunks together so Gemini can read them.
-        StringBuilder contextBuilder = new StringBuilder();
-        for (WebMemory chunk : relevantChunks) {
-            contextBuilder.append("Source: ").append(chunk.getTitle()).append("\n");
-            contextBuilder.append("Content: ").append(chunk.getContent()).append("\n\n");
+        List<WebMemory> relevantChunks;
+        if (daysLimit != null && daysLimit > 0) {
+            LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysLimit);
+            relevantChunks = webMemoryRepository.searchSimilarMemoriesWithTimeFilter(searchVector, cutoffDate);
+        } else {
+            relevantChunks = webMemoryRepository.searchSimilarMemories(searchVector);
         }
 
-        // 4. Give Gemini strict instructions so it doesn't hallucinate
+        // 1. TOKEN PROTECTOR: Strictly limit the database memories to 3 chunks maximum
+        StringBuilder contextBuilder = new StringBuilder();
+        int chunkCount = 0;
+        for (WebMemory chunk : relevantChunks) {
+            if (chunkCount >= 3) break; // Hard cap
+            contextBuilder.append("Source: ").append(chunk.getTitle()).append("\n");
+            if (chunk.getCreatedAt() != null) {
+                contextBuilder.append("Date Saved: ").append(chunk.getCreatedAt().toLocalDate().toString()).append("\n");
+            }
+            contextBuilder.append("Content: ").append(chunk.getContent()).append("\n\n");
+            chunkCount++;
+        }
+
+        // 2. SLIDING WINDOW MEMORY: Only grab the last 4 chat messages (2 questions, 2 answers)
+        StringBuilder historyBuilder = new StringBuilder();
+        if (request.getHistory() != null && !request.getHistory().isEmpty()) {
+            List<ChatMessage> history = request.getHistory();
+            
+            // Math to only grab the end of the list
+            int startIndex = Math.max(0, history.size() - 4); 
+            
+            for (int i = startIndex; i < history.size(); i++) {
+                ChatMessage msg = history.get(i);
+                
+                // Extra safety: If an old AI answer was massive, trim it down
+                String text = msg.getText();
+                if (text.length() > 800) {
+                    text = text.substring(0, 800) + "... [Truncated for memory limits]";
+                }
+                
+                historyBuilder.append(msg.getRole().toUpperCase()).append(": ").append(text).append("\n\n");
+            }
+        }
+
         String finalPrompt = "You are 'Recallo', an AI second brain. Answer the user's question based strictly on the provided memories below. "
+                + "If the user asks a follow-up question, look at the PREVIOUS CONVERSATION to understand the context. "
+                + "If the user asks about dates or times they read/visited something, use the 'Date Saved' information provided in the memories. "
                 + "If the answer is not in the memories, say 'I don't have a memory of that.' Do not use outside knowledge.\n\n"
                 + "USER MEMORIES:\n" + contextBuilder.toString()
-                + "USER QUESTION: " + userQuestion;
+                + "PREVIOUS CONVERSATION:\n" + historyBuilder.toString()
+                + "CURRENT QUESTION: " + userQuestion;
 
-        System.out.println("Thinking and analyzing memories...");
+        ResponseBodyEmitter emitter = new ResponseBodyEmitter(120000L);
 
-        // 5. Send it to Gemini and get the English response back!
-        String geminiResponse = aiService.askGemini(finalPrompt);
+        aiService.getStreamingChatModel().generate(finalPrompt, new StreamingResponseHandler<AiMessage>() {
+            @Override
+            public void onNext(String token) {
+                try { emitter.send(token); } catch (Exception e) { emitter.completeWithError(e); }
+            }
 
-        System.out.println("Response generated successfully!");
-        System.out.println("---------------------------------");
+            @Override
+            public void onComplete(Response<AiMessage> response) {
+                emitter.complete();
+            }
 
-        return geminiResponse;
+            @Override
+            public void onError(Throwable error) {
+                try {
+                    System.out.println("AI CRASHED: " + error.getMessage());
+                    emitter.send("\n\n ⚠️ [AI Failed: " + error.getMessage() + "]");
+                    emitter.complete();
+                } catch (Exception e) {
+                    emitter.completeWithError(error);
+                }
+            }
+        });
+
+        return emitter;
     }
 }
